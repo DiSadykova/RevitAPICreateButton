@@ -14,7 +14,8 @@ namespace RevitAPICreateButton
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            TaskDialog.Show("Сообщение", "Тест");
+            var window = new MainView(commandData);
+            window.ShowDialog();
             return Result.Succeeded;
 
         }
