@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using RevitAPITrainingLibrary;
 
 namespace RevitAPICreateButton
 {
@@ -15,75 +16,59 @@ namespace RevitAPICreateButton
         private ExternalCommandData _commandData;
 
         public DelegateCommand OutputForPipesCommand { get; }
+        public DelegateCommand OutputForWallsCommand { get; }
+        public DelegateCommand OutputForDoorsCommand { get; }
 
         public MainViewViewModel(ExternalCommandData commandData)
         {
             _commandData = commandData;
             OutputForPipesCommand = new DelegateCommand(OnOutputForPipesCommand);
+            OutputForWallsCommand = new DelegateCommand(OnOutputForWallsCommand);
+            OutputForDoorsCommand = new DelegateCommand(OnOutputForDoorsCommand);
         }
 
-        public event EventHandler CloseRequest;
-        private void RaiseCloseRequest()
+        public event EventHandler ShowRequest;
+        private void RaiseShowRequest()
         {
-            CloseRequest?.Invoke(this, EventArgs.Empty);
+            ShowRequest?.Invoke(this, EventArgs.Empty);
+        }
+        public event EventHandler HideRequest;
+        private void RaiseHideRequest()
+        {
+            HideRequest?.Invoke(this, EventArgs.Empty);
         }
 
         private void OnOutputForPipesCommand()
         {
-            RaiseCloseRequest();
-            UIApplication uiapp = _commandData.Application;
-            UIDocument uidoc = uiapp.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            RaiseHideRequest();
 
-            var pipes = new FilteredElementCollector(doc)
-                .OfClass(typeof(Pipe))
-                .Cast<Pipe>()
-                .ToList();
+            List<Pipe> pipes = FilterUtils.FilterForPipes(_commandData);
 
             TaskDialog.Show("Количество труб в модели", pipes.Count.ToString());
 
+            RaiseShowRequest();
         }
+
         private void OnOutputForWallsCommand()
         {
-            RaiseCloseRequest();
-            UIApplication uiapp = _commandData.Application;
-            UIDocument uidoc = uiapp.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            RaiseHideRequest();
 
+            List<Wall> walls = FilterUtils.FilterForWalls(_commandData);
+            WallsUtils.VolumeSumInModel(walls);
 
-            var walls = new FilteredElementCollector(doc)
-               .OfClass(typeof(Wall))
-               .Cast<Wall>()
-               .ToList();
-
-            double value = 0;
-            double sum = 0;
-            foreach (var wall in walls)
-            {
-                Parameter volumeParameter = wall.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED);
-                if (volumeParameter.StorageType == StorageType.Double)
-                {
-                    value = UnitUtils.ConvertFromInternalUnits(volumeParameter.AsDouble(), UnitTypeId.CubicMeters);
-                }
-                sum += value;
-            }
-            TaskDialog.Show("Сумма объемов всех стен в модели", sum.ToString());
+            RaiseShowRequest();
         }
 
         private void OnOutputForDoorsCommand()
         {
-            RaiseCloseRequest();
-            UIApplication uiapp = _commandData.Application;
-            UIDocument uidoc = uiapp.ActiveUIDocument;
-            Document doc = uidoc.Document;
+            RaiseHideRequest();
+            List<FamilyInstance> doorsFInstances = FilterUtils.FilterForDoorsFamilyInstance(_commandData);
 
-            List<FamilyInstance> fInstances = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Doors)
-                .WhereElementIsNotElementType()
-                .Cast<FamilyInstance>()
-                .ToList();
+            TaskDialog.Show("Количество дверей в модели", doorsFInstances.Count.ToString());
 
-            TaskDialog.Show("Количество дверей в модели", fInstances.Count.ToString());
+            RaiseShowRequest();
         }
+
+        
     }
 }
